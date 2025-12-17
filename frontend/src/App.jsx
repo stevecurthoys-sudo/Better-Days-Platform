@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import { API_BASE_UR } from './config.js'
+import { API_BASE_UR } from './config.js';
 
 function App() {
   const [user, setUser] = useState(null);
