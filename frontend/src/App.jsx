@@ -1,17 +1,53 @@
 import React, { useState } from 'react';
 import './App.css';
+import { API_BASE_UR } from './config.js'
 
 function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
 
-  const handleRegister = (e) => {
-    e.preventDefault();
-    // Simulate registration
-    setUser({ name: 'New User', email: 'user@betterdays.app' });
-    setPage('dashboard');
+const handleRegister = async (e) => {
+  e.preventDefault();
+  
+  // Get form data (simplified - in a real app, use state or refs for each field)
+  const formData = {
+    email: 'testuser@example.com', // You'll replace this with real form values later
+    password: 'testpassword123',
+    display_name: 'Test User'
   };
-
+  
+  try {
+    console.log('Sending registration to:', API_BASE_URL);
+    
+    const response = await fetch(`${API_BASE_URL}/api/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Registration failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Registration successful:', data);
+    
+    // Set the user in state with real data from backend
+    setUser({ 
+      name: data.user.display_name, 
+      email: data.user.email,
+      id: data.user.id 
+    });
+    setPage('dashboard');
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+    // In a real app, show this error to the user
+    alert(`Registration failed: ${error.message}. Check console for details.`);
+  }
+};
   return (
     <div className="app">
       <header className="header">
