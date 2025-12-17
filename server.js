@@ -17,7 +17,11 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
-
+// DEBUG: Log database connection info (REMOVE LATER)
+console.log('=== DATABASE CONNECTION DEBUG ===');
+console.log('DATABASE_URL exists?', !!process.env.DATABASE_URL);
+console.log('DATABASE_URL value:', process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]*@/, ':****@') : 'UNDEFINED'); // Hides password
+console.log('======================');
 // 1. Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Better Days API is running' });
