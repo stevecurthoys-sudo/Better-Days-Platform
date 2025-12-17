@@ -11,9 +11,5 @@
       "src": "/(.*)",
       "dest": "frontend/dist/$1"
     }
-  ],
-  "env": {
-    "DATABASE_URL": "@better_days_database_url",
-    "JWT_SECRET": "@better_days_jwt_secret"
   }
 }
