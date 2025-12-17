@@ -82,6 +82,6 @@ app.post('/api/forums', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0' () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Better Days backend running on port ${PORT}`);
 });
