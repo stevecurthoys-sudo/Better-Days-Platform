@@ -5,21 +5,14 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ======================
-// MIDDLEWARE
-// ======================
-app.use(require('cors')()); // Allow all origins for testing
+app.use(require('cors')());
 app.use(express.json());
 
-// ======================
-// EXPLICIT DATABASE CONFIG
-// ======================
 console.log('🔧 === DATABASE SETUP ===');
 
-// OPTION 1: Hardcoded config (MOST RELIABLE for testing)
 const dbConfig = {
   user: 'postgres',
-  password: 'YOUR_REAL_SUPABASE_PASSWORD_HERE', // ← REPLACE THIS
+  password: '#tfiiohfutu', 
   host: 'db.czcxphiiraiglaehwsor.supabase.co',
   port: 5432,
   database: 'postgres',
@@ -38,9 +31,6 @@ console.log('Using config:', {
 
 const pool = new Pool(dbConfig);
 
-// ======================
-// TEST DATABASE CONNECTION
-// ======================
 async function testConnection() {
   console.log('🔌 Testing database connection...');
   try {
@@ -48,7 +38,6 @@ async function testConnection() {
     const result = await client.query('SELECT NOW() as time');
     console.log('✅ Database connected! Current time:', result.rows[0].time);
     
-    // Check if users table exists
     const tableCheck = await client.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
@@ -67,12 +56,8 @@ async function testConnection() {
   }
 }
 
-// Run test on startup
 testConnection();
 
-// ======================
-// HEALTH ENDPOINT
-// ======================
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -81,14 +66,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ======================
-// SIMPLE REGISTRATION
-// ======================
 app.post('/api/register', async (req, res) => {
   console.log('📨 Registration attempt for:', req.body.email);
   
   try {
-    // Simple test - just check if we can query
     const result = await pool.query('SELECT NOW() as time');
     
     res.json({
@@ -108,9 +89,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// ======================
-// START SERVER
-// ======================
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Health: http://localhost:${PORT}/health`);
