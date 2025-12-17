@@ -1,5 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
+const dns = require('dns');
 require('dotenv').config();
 
 const app = express();
@@ -8,35 +9,37 @@ const PORT = process.env.PORT || 5000;
 app.use(require('cors')());
 app.use(express.json());
 
-console.log('🔧 === DATABASE SETUP ===');
-
 const dbConfig = {
   user: 'postgres',
-  password: '#tfiiohfutu', 
+  password: 'tfiiohfutu#',
   host: 'db.czcxphiiraiglaehwsor.supabase.co',
   port: 5432,
   database: 'postgres',
+  family: 4,
   ssl: {
     rejectUnauthorized: false,
     require: true
   }
 };
 
-console.log('Using config:', {
-  host: dbConfig.host,
-  user: dbConfig.user,
-  database: dbConfig.database,
-  port: dbConfig.port
+console.log('Database host:', dbConfig.host);
+
+dns.lookup('db.czcxphiiraiglaehwsor.supabase.co', { family: 4 }, (err, address) => {
+  if (err) {
+    console.log('DNS lookup error:', err.message);
+  } else {
+    console.log('DNS resolved to (IPv4):', address);
+  }
 });
 
 const pool = new Pool(dbConfig);
 
 async function testConnection() {
-  console.log('🔌 Testing database connection...');
+  console.log('Testing database connection...');
   try {
     const client = await pool.connect();
     const result = await client.query('SELECT NOW() as time');
-    console.log('✅ Database connected! Current time:', result.rows[0].time);
+    console.log('Database connected. Time:', result.rows[0].time);
     
     const tableCheck = await client.query(`
       SELECT EXISTS (
@@ -45,14 +48,11 @@ async function testConnection() {
         AND table_name = 'users'
       );
     `);
-    console.log('📊 Users table exists?', tableCheck.rows[0].exists);
+    console.log('Users table exists?', tableCheck.rows[0].exists);
     
     client.release();
-    return true;
   } catch (error) {
-    console.error('❌ Database connection FAILED:', error.message);
-    console.error('Full error:', error);
-    return false;
+    console.error('Database connection FAILED:', error.message);
   }
 }
 
@@ -67,7 +67,7 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/api/register', async (req, res) => {
-  console.log('📨 Registration attempt for:', req.body.email);
+  console.log('Registration attempt for:', req.body.email);
   
   try {
     const result = await pool.query('SELECT NOW() as time');
@@ -90,7 +90,5 @@ app.post('/api/register', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Health: http://localhost:${PORT}/health`);
-  console.log(`📮 Register: POST http://localhost:${PORT}/api/register`);
+  console.log(`Server running on port ${PORT}`);
 });
