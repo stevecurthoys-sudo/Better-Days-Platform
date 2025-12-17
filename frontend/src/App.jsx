@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import { API_BASE_UR } from './config.js';
+const API_BASE_URL = 'https://better-days-backend.onrender.com';
 
 function App() {
   const [user, setUser] = useState(null);
