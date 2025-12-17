@@ -1,15 +1,16 @@
 const express = require('express');
+const cors = require('cors');
 const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
-const cors = require('cors');
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Middleware - Allows your Vercel frontend to connect
+app.use(cors({
+  origin: 'https://better-days-platform.vercel.app'
+}));
 app.use(express.json());
-app.use(cors());
 
 // Database connection
 const pool = new Pool({
@@ -17,16 +18,17 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Basic health check
+// 1. Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Better Days API is running' });
 });
 
-// User registration endpoint
+// 2. USER REGISTRATION ENDPOINT (This is the missing piece!)
 app.post('/api/register', async (req, res) => {
   try {
     const { email, password, display_name } = req.body;
-    
+    console.log('Registration attempt for:', email);
+
     // Check if user exists
     const userCheck = await pool.query(
       'SELECT id FROM users WHERE email = $1',
@@ -37,10 +39,11 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
     
-    // Create user (in production, hash password with bcrypt)
+    // In a real app, HASH the password with bcrypt before saving!
+    // For now, we'll store it directly (change this later for security)
     const newUser = await pool.query(
       'INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name',
-      [email, password, display_name]
+      [email, password, display_name || 'New User']
     );
     
     res.status(201).json({
@@ -54,22 +57,14 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Forum creation endpoint
+// 3. Forum creation endpoint (for future use)
 app.post('/api/forums', async (req, res) => {
   try {
-    const { name, tier, created_by } = req.body;
+    const { name, created_by } = req.body;
     
     const newForum = await pool.query(
-      `INSERT INTO forums (name, tier, created_by) 
-       VALUES ($1, $2, $3) 
-       RETURNING id, name, tier, created_at`,
-      [name, tier || 1, created_by]
-    );
-    
-    // Add creator as first member
-    await pool.query(
-      'INSERT INTO forum_members (forum_id, user_id) VALUES ($1, $2)',
-      [newForum.rows[0].id, created_by]
+      `INSERT INTO forums (name, created_by) VALUES ($1, $2) RETURNING id, name, created_at`,
+      [name, created_by]
     );
     
     res.status(201).json({
@@ -84,5 +79,5 @@ app.post('/api/forums', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Better Days backend running on port ${PORT}`);
+  console.log(`✅ Better Days backend running on port ${PORT}`);
 });
