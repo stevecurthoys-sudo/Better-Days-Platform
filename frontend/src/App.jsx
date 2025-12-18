@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { API_BASE_URL } from './config.js';
+const API_BASE_URL = 'https://better-days-backend.onrender.com';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [isLogin, setIsLogin] = useState(true); // true = login, false = register
+  const [page, setPage] = useState('home');
+  const [isLogin, setIsLogin] = useState(false); // false = register, true = login
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,8 +23,8 @@ function App() {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
-        // Optional: Verify token is still valid with backend
-        verifyToken(token);
+        setPage('dashboard');
+        console.log('Auto-login successful for:', userData.email);
       } catch (error) {
         console.error('Failed to parse saved user:', error);
         localStorage.removeItem('betterDaysToken');
@@ -31,24 +32,6 @@ function App() {
       }
     }
   }, []);
-
-  // Verify token with backend
-  const verifyToken = async (token) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (!response.ok) {
-        // Token invalid or expired
-        localStorage.removeItem('betterDaysToken');
-        localStorage.removeItem('betterDaysUser');
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('Token verification failed:', error);
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -58,49 +41,111 @@ function App() {
     }));
   };
 
-  const handleAuthSubmit = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-
-    const endpoint = isLogin ? '/api/signin' : '/api/register';
-    const payload = isLogin 
-      ? { 
-          email: formData.email, 
-          password: formData.password 
-        }
-      : { 
-          email: formData.email, 
-          password: formData.password,
-          display_name: formData.name || 'New User'
-        };
-
+   
+    const payload = {
+      email: formData.email,
+      password: formData.password,
+      display_name: formData.name || 'New User'
+    };
+   
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      console.log('Registering user:', payload.email);
+     
+      const response = await fetch(`${API_BASE_URL}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload)
       });
-
+     
       const data = await response.json();
+     
+      if (data.success) {
+        // Auto-login after successful registration
+        const signInResponse = await fetch(`${API_BASE_URL}/api/signin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: payload.email,
+            password: payload.password
+          })
+        });
+       
+        const signInData = await signInResponse.json();
+       
+        if (signInData.success) {
+          // Save token and user data
+          localStorage.setItem('betterDaysToken', signInData.token);
+          localStorage.setItem('betterDaysUser', JSON.stringify(signInData.user));
+         
+          // Set the user in state
+          setUser({
+            name: signInData.user.display_name,
+            email: signInData.user.email,
+            id: signInData.user.id
+          });
+          setPage('dashboard');
+          setMessage('Account created successfully! You are now signed in.');
+        }
+      } else {
+        setMessage(data.error || 'Registration failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      setMessage('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+   
+    const payload = {
+      email: formData.email,
+      password: formData.password
+    };
+   
+    try {
+      console.log('Signing in user:', payload.email);
+     
+      const response = await fetch(`${API_BASE_URL}/api/signin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+     
+      const data = await response.json();
+     
       if (data.success) {
         // Save token and user data
         localStorage.setItem('betterDaysToken', data.token);
         localStorage.setItem('betterDaysUser', JSON.stringify(data.user));
-        
-        setUser(data.user);
-        setMessage(isLogin ? 'Sign in successful!' : 'Account created successfully!');
-        
-        // Clear form
-        setFormData({ name: '', email: '', password: '' });
+       
+        // Set the user in state
+        setUser({
+          name: data.user.display_name,
+          email: data.user.email,
+          id: data.user.id
+        });
+        setPage('dashboard');
+        setMessage('Sign in successful!');
       } else {
-        setMessage(data.error || 'Authentication failed. Please try again.');
+        setMessage(data.error || 'Sign in failed. Please check your credentials.');
       }
     } catch (error) {
-      console.error('Authentication error:', error);
+      console.error('Sign in error:', error);
       setMessage('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
@@ -111,8 +156,9 @@ function App() {
     localStorage.removeItem('betterDaysToken');
     localStorage.removeItem('betterDaysUser');
     setUser(null);
+    setPage('home');
     setFormData({ name: '', email: '', password: '' });
-    setIsLogin(true);
+    setIsLogin(false);
     setMessage('You have been signed out.');
   };
 
@@ -120,6 +166,14 @@ function App() {
     setIsLogin(!isLogin);
     setMessage('');
     setFormData({ name: '', email: '', password: '' });
+  };
+
+  const handleSubmit = (e) => {
+    if (isLogin) {
+      handleSignIn(e);
+    } else {
+      handleRegister(e);
+    }
   };
 
   return (
@@ -133,14 +187,33 @@ function App() {
         {!user ? (
           // Authentication Page (Login/Register)
           <div className="auth-card">
-            <h2>{isLogin ? 'Welcome Back' : 'Join Better Days'}</h2>
-            <p>
-              {isLogin 
-                ? 'Sign in to access your neighborhood forum and local services.'
-                : 'Create an account to join your street forum and connect with neighbors.'}
-            </p>
+            <div className="auth-header">
+              <h2>{isLogin ? 'Welcome Back' : 'Join Better Days'}</h2>
+              <p>
+                {isLogin 
+                  ? 'Sign in to access your neighborhood forum and local services.'
+                  : 'Create an account to join your street forum and connect with neighbors.'}
+              </p>
+              
+              <div className="auth-tabs">
+                <button 
+                  className={`auth-tab ${!isLogin ? 'active' : ''}`}
+                  onClick={() => setIsLogin(false)}
+                  type="button"
+                >
+                  Create Account
+                </button>
+                <button 
+                  className={`auth-tab ${isLogin ? 'active' : ''}`}
+                  onClick={() => setIsLogin(true)}
+                  type="button"
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
            
-            <form onSubmit={handleAuthSubmit} className="auth-form">
+            <form onSubmit={handleSubmit} className="auth-form">
               {!isLogin && (
                 <input 
                   type="text" 
@@ -179,84 +252,72 @@ function App() {
             </form>
 
             {message && (
-              <div className={`message ${message.includes('successful') ? 'success' : 'error'}`}>
+              <div className={`auth-message ${message.includes('successful') ? 'success' : 'error'}`}>
                 {message}
               </div>
             )}
 
-            <div className="auth-toggle">
+            <div className="auth-switch">
               <p>
                 {isLogin ? "Don't have an account? " : "Already have an account? "}
                 <button 
                   onClick={toggleAuthMode} 
-                  className="btn-link"
+                  className="switch-link"
+                  type="button"
                 >
-                  {isLogin ? 'Sign Up' : 'Sign In'}
+                  {isLogin ? 'Create one' : 'Sign in'}
                 </button>
               </p>
             </div>
 
             <div className="demo-notes">
-              <p><strong>Live Backend:</strong> This connects to your deployed API at {API_BASE_URL}</p>
-              <p>Test with the credentials you used during registration.</p>
+              <p><strong>Live Backend Connected:</strong> Using {API_BASE_URL}</p>
+              <p>Test with credentials you've previously registered.</p>
             </div>
           </div>
         ) : (
           // User Dashboard
           <div className="dashboard">
             <div className="welcome-banner">
-              <h2>Welcome back, {user.display_name}!</h2>
-              <p>You're signed in as {user.email}</p>
-              <p className="small">Session persists across page refreshes.</p>
+              <h2>Welcome back, {user.name}!</h2>
+              <p>You're part of the Maple Street Forum (8 members)</p>
+              <p className="user-email">Signed in as: {user.email}</p>
             </div>
 
             <div className="dashboard-grid">
               <div className="dashboard-card">
                 <h3>🏠 Your Forum</h3>
-                <p>Ready to create or join a neighborhood forum.</p>
-                <p>User ID: {user.id}</p>
-                <button className="btn-secondary">Explore Forums</button>
+                <p>Active members: 8/10</p>
+                <p>Next election: 24 days</p>
+                <button className="btn-secondary">Enter Forum</button>
               </div>
 
               <div className="dashboard-card">
-                <h3>🔐 Account Status</h3>
+                <h3>🗳️ Active Proposals</h3>
                 <ul>
-                  <li>Email: {user.email}</li>
-                  <li>Verified: {user.verified ? 'Yes' : 'Pending'}</li>
-                  <li>Member since: {new Date(user.created_at).toLocaleDateString()}</li>
+                  <li>Community Garden Plan (voting ends tomorrow)</li>
+                  <li>Neighborhood Watch Schedule (new)</li>
                 </ul>
-                <button 
-                  onClick={() => console.log('View profile')} 
-                  className="btn-secondary"
-                >
-                  View Profile
-                </button>
+                <button className="btn-secondary">View All</button>
               </div>
 
               <div className="dashboard-card">
-                <h3>🛠️ API Ready</h3>
-                <p>Your backend is fully functional:</p>
+                <h3>🛠️ Local Services</h3>
+                <p>Find trusted neighbors offering:</p>
                 <ul>
-                  <li>✅ Authentication working</li>
-                  <li>✅ Database connected</li>
-                  <li>✅ JWT tokens active</li>
-                  <li>✅ Protected routes ready</li>
+                  <li>Gardening & Landscaping</li>
+                  <li>Home Repairs</li>
+                  <li>Tutoring</li>
+                  <li>Cleaning Services</li>
                 </ul>
-                <button 
-                  onClick={() => window.open(`${API_BASE_URL}/health`, '_blank')}
-                  className="btn-secondary"
-                >
-                  Test Health Check
-                </button>
+                <button className="btn-secondary">Browse Marketplace</button>
               </div>
             </div>
 
             <div className="quick-actions">
-              <button className="btn-primary">Create First Forum</button>
-              <button 
-                onClick={handleLogout} 
-                className="btn-logout"
-              >
+              <button className="btn-primary">Propose New Idea</button>
+              <button className="btn-outline">Invite Neighbors</button>
+              <button onClick={handleLogout} className="btn-logout">
                 Sign Out
               </button>
             </div>
@@ -269,7 +330,7 @@ function App() {
         <p className="footer-note">
           {user 
             ? `Authenticated with ${API_BASE_URL}` 
-            : 'Sign in to access the full platform'}
+            : 'Sign in or create an account to access the full platform.'}
         </p>
       </footer>
     </div>
