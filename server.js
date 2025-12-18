@@ -13,14 +13,14 @@ app.use(cors());
 app.use(express.json());
 
 // Validate environment variable early
-if (!process.env.DATABASE_URL) {
-  console.error('❌ DATABASE_URL not set in environment');
+if (!process.env.DATABASE_PUBLIC_URL) {
+  console.error('❌ DATABASE_PUBLIC_URL not set in environment');
   process.exit(1);
 }
 
 // Database pool - configured for Railway's public URL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_PUBLIC_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
