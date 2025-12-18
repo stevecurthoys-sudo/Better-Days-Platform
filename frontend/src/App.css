@@ -1,3 +1,261 @@
+/* Better Days App - Main Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+  min-height: 100vh;
+  color: #333;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  font-size: 3.5rem;
+  color: #2d5b8a;
+  margin-bottom: 10px;
+}
+
+.tagline {
+  font-size: 1.2rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  padding: 20px 0;
+}
+
+/* Auth Card */
+.auth-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.auth-card h2 {
+  color: #2d5b8a;
+  margin-bottom: 15px;
+  font-size: 2rem;
+}
+
+.auth-card p {
+  color: #666;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-form input {
+  padding: 15px;
+  border: 2px solid #e1e8f0;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #2d5b8a;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, #2d5b8a 0%, #3a7bc0 100%);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(45, 91, 138, 0.3);
+}
+
+.btn-secondary {
+  background: white;
+  color: #2d5b8a;
+  border: 2px solid #2d5b8a;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #2d5b8a;
+  color: white;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #2d5b8a;
+  border: 2px solid #2d5b8a;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-logout {
+  background: #f8f9fa;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Demo Notes */
+.demo-notes {
+  margin-top: 30px;
+  padding: 15px;
+  background: #f0f7ff;
+  border-radius: 10px;
+  border-left: 4px solid #2d5b8a;
+}
+
+.demo-notes p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Dashboard */
+.dashboard {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.welcome-banner {
+  background: linear-gradient(135deg, #e8f4ff 0%, #d4e7ff 100%);
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+}
+
+.welcome-banner h2 {
+  color: #2d5b8a;
+  margin-bottom: 10px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.dashboard-card {
+  background: #f8fafc;
+  padding: 25px;
+  border-radius: 15px;
+  border: 1px solid #e1e8f0;
+}
+
+.dashboard-card h3 {
+  color: #2d5b8a;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-card ul {
+  list-style: none;
+  margin: 15px 0;
+}
+
+.dashboard-card li {
+  padding: 8px 0;
+  border-bottom: 1px solid #e1e8f0;
+  color: #555;
+}
+
+.dashboard-card li:last-child {
+  border-bottom: none;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  padding-top: 30px;
+  border-top: 2px solid #e1e8f0;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 30px 20px;
+  color: #666;
+  margin-top: 40px;
+}
+
+.footer-note {
+  font-size: 0.9rem;
+  color: #888;
+  margin-top: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 2.5rem;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quick-actions {
+    flex-direction: column;
+  }
+  
+  .auth-card,
+  .dashboard {
+    padding: 20px;
+  }
+}
 /* Authentication Toggle */
 .auth-toggle {
   margin-top: 25px;
