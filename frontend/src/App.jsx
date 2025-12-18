@@ -3,14 +3,16 @@ import './App.css';
 const API_BASE_URL = 'https://better-days-backend.onrender.com';
 
 function App() {
+  // State for user authentication
   const [user, setUser] = useState(null);
-  const [page, setPage] = useState('home');
-  const [isLogin, setIsLogin] = useState(false); // false = register, true = login
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: ''
-  });
+  const [isLoginMode, setIsLoginMode] = useState(false); // false = register, true = login
+  
+  // Form state
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  
+  // UI state
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -23,7 +25,6 @@ function App() {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
-        setPage('dashboard');
         console.log('Auto-login successful for:', userData.email);
       } catch (error) {
         console.error('Failed to parse saved user:', error);
@@ -33,147 +34,152 @@ function App() {
     }
   }, []);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
+  // Handle registration
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
    
-    const payload = {
-      email: formData.email,
-      password: formData.password,
-      display_name: formData.name || 'New User'
+    const formData = {
+      email: email,
+      password: password,
+      display_name: name || 'New User'
     };
    
     try {
-      console.log('Registering user:', payload.email);
+      console.log('Registering user:', formData.email);
      
       const response = await fetch(`${API_BASE_URL}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(formData)
       });
      
-      const data = await response.json();
-     
-      if (data.success) {
-        // Auto-login after successful registration
-        const signInResponse = await fetch(`${API_BASE_URL}/api/signin`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: payload.email,
-            password: payload.password
-          })
-        });
-       
-        const signInData = await signInResponse.json();
-       
-        if (signInData.success) {
-          // Save token and user data
-          localStorage.setItem('betterDaysToken', signInData.token);
-          localStorage.setItem('betterDaysUser', JSON.stringify(signInData.user));
-         
-          // Set the user in state
-          setUser({
-            name: signInData.user.display_name,
-            email: signInData.user.email,
-            id: signInData.user.id
-          });
-          setPage('dashboard');
-          setMessage('Account created successfully! You are now signed in.');
-        }
-      } else {
-        setMessage(data.error || 'Registration failed. Please try again.');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Registration failed: ${response.status}`);
       }
+     
+      const data = await response.json();
+      console.log('Registration successful:', data);
+     
+      // Auto-login after successful registration
+      const signInResponse = await fetch(`${API_BASE_URL}/api/signin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
+     
+      if (signInResponse.ok) {
+        const signInData = await signInResponse.json();
+        
+        // Save token and user data to localStorage
+        localStorage.setItem('betterDaysToken', signInData.token);
+        localStorage.setItem('betterDaysUser', JSON.stringify(signInData.user));
+       
+        // Update UI state
+        setUser({
+          name: signInData.user.display_name,
+          email: signInData.user.email,
+          id: signInData.user.id
+        });
+        
+        setMessage('Account created successfully! You are now signed in.');
+      } else {
+        throw new Error('Auto-login after registration failed');
+      }
+     
     } catch (error) {
       console.error('Registration error:', error);
-      setMessage('Network error. Please check your connection and try again.');
+      setMessage(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle sign in
   const handleSignIn = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
    
-    const payload = {
-      email: formData.email,
-      password: formData.password
+    const formData = {
+      email: email,
+      password: password
     };
    
     try {
-      console.log('Signing in user:', payload.email);
+      console.log('Signing in user:', formData.email);
      
       const response = await fetch(`${API_BASE_URL}/api/signin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(formData)
       });
      
-      const data = await response.json();
-     
-      if (data.success) {
-        // Save token and user data
-        localStorage.setItem('betterDaysToken', data.token);
-        localStorage.setItem('betterDaysUser', JSON.stringify(data.user));
-       
-        // Set the user in state
-        setUser({
-          name: data.user.display_name,
-          email: data.user.email,
-          id: data.user.id
-        });
-        setPage('dashboard');
-        setMessage('Sign in successful!');
-      } else {
-        setMessage(data.error || 'Sign in failed. Please check your credentials.');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Sign in failed: ${response.status}`);
       }
+     
+      const data = await response.json();
+      console.log('Sign in successful:', data);
+     
+      // Save token and user data to localStorage
+      localStorage.setItem('betterDaysToken', data.token);
+      localStorage.setItem('betterDaysUser', JSON.stringify(data.user));
+     
+      // Update UI state
+      setUser({
+        name: data.user.display_name,
+        email: data.user.email,
+        id: data.user.id
+      });
+      
+      setMessage('Sign in successful!');
+     
     } catch (error) {
       console.error('Sign in error:', error);
-      setMessage('Network error. Please check your connection and try again.');
+      setMessage(error.message || 'Sign in failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('betterDaysToken');
-    localStorage.removeItem('betterDaysUser');
-    setUser(null);
-    setPage('home');
-    setFormData({ name: '', email: '', password: '' });
-    setIsLogin(false);
-    setMessage('You have been signed out.');
-  };
-
-  const toggleAuthMode = () => {
-    setIsLogin(!isLogin);
-    setMessage('');
-    setFormData({ name: '', email: '', password: '' });
-  };
-
+  // Handle form submission
   const handleSubmit = (e) => {
-    if (isLogin) {
+    if (isLoginMode) {
       handleSignIn(e);
     } else {
       handleRegister(e);
     }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('betterDaysToken');
+    localStorage.removeItem('betterDaysUser');
+    setUser(null);
+    setName('');
+    setEmail('');
+    setPassword('');
+    setIsLoginMode(false);
+    setMessage('You have been signed out.');
+  };
+
+  // Toggle between login and register modes
+  const toggleAuthMode = () => {
+    setIsLoginMode(!isLoginMode);
+    setMessage('');
   };
 
   return (
@@ -185,59 +191,55 @@ function App() {
 
       <main className="main-content">
         {!user ? (
-          // Authentication Page (Login/Register)
+          // Authentication Page with BOTH Sign Up and Sign In
           <div className="auth-card">
-            <div className="auth-header">
-              <h2>{isLogin ? 'Welcome Back' : 'Join Better Days'}</h2>
-              <p>
-                {isLogin 
-                  ? 'Sign in to access your neighborhood forum and local services.'
-                  : 'Create an account to join your street forum and connect with neighbors.'}
-              </p>
-              
-              <div className="auth-tabs">
-                <button 
-                  className={`auth-tab ${!isLogin ? 'active' : ''}`}
-                  onClick={() => setIsLogin(false)}
-                  type="button"
-                >
-                  Create Account
-                </button>
-                <button 
-                  className={`auth-tab ${isLogin ? 'active' : ''}`}
-                  onClick={() => setIsLogin(true)}
-                  type="button"
-                >
-                  Sign In
-                </button>
-              </div>
-            </div>
+            <h2>{isLoginMode ? 'Welcome Back' : 'Join Better Days'}</h2>
+            <p>
+              {isLoginMode 
+                ? 'Sign in to access your neighborhood forum and local services.'
+                : 'Create an account to join your street forum and connect with neighbors.'}
+            </p>
            
+            {/* Auth Mode Toggle Buttons - VISIBLE ON FIRST PAGE */}
+            <div className="auth-mode-toggle">
+              <button 
+                className={`auth-mode-btn ${!isLoginMode ? 'active' : ''}`}
+                onClick={() => setIsLoginMode(false)}
+                type="button"
+              >
+                Create Account
+              </button>
+              <button 
+                className={`auth-mode-btn ${isLoginMode ? 'active' : ''}`}
+                onClick={() => setIsLoginMode(true)}
+                type="button"
+              >
+                Sign In
+              </button>
+            </div>
+
+            {/* Combined Form for Register/Login */}
             <form onSubmit={handleSubmit} className="auth-form">
-              {!isLogin && (
+              {!isLoginMode && (
                 <input 
                   type="text" 
-                  name="name"
-                  placeholder="Your Name" 
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required={!isLogin}
+                  placeholder="Your Name (optional)" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               )}
               <input 
                 type="email" 
-                name="email"
                 placeholder="Email Address" 
-                value={formData.email}
-                onChange={handleInputChange}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
               <input 
                 type="password" 
-                name="password"
                 placeholder="Password" 
-                value={formData.password}
-                onChange={handleInputChange}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength="6"
               />
@@ -247,32 +249,34 @@ function App() {
                 className="btn-primary"
                 disabled={loading}
               >
-                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+                {loading ? 'Processing...' : (isLoginMode ? 'Sign In' : 'Create Account')}
               </button>
             </form>
 
-            {message && (
-              <div className={`auth-message ${message.includes('successful') ? 'success' : 'error'}`}>
-                {message}
-              </div>
-            )}
-
+            {/* Switch between modes */}
             <div className="auth-switch">
               <p>
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                {isLoginMode ? "Don't have an account? " : "Already have an account? "}
                 <button 
                   onClick={toggleAuthMode} 
                   className="switch-link"
                   type="button"
                 >
-                  {isLogin ? 'Create one' : 'Sign in'}
+                  {isLoginMode ? 'Create one' : 'Sign in'}
                 </button>
               </p>
             </div>
 
+            {/* Status messages */}
+            {message && (
+              <div className={`auth-message ${message.includes('successful') ? 'success' : ''}`}>
+                {message}
+              </div>
+            )}
+
             <div className="demo-notes">
-              <p><strong>Live Backend Connected:</strong> Using {API_BASE_URL}</p>
-              <p>Test with credentials you've previously registered.</p>
+              <p><strong>Live Backend:</strong> Connected to {API_BASE_URL}</p>
+              <p>Test with an existing account or create a new one.</p>
             </div>
           </div>
         ) : (
@@ -281,7 +285,7 @@ function App() {
             <div className="welcome-banner">
               <h2>Welcome back, {user.name}!</h2>
               <p>You're part of the Maple Street Forum (8 members)</p>
-              <p className="user-email">Signed in as: {user.email}</p>
+              <p className="user-info">Signed in as: {user.email}</p>
             </div>
 
             <div className="dashboard-grid">
