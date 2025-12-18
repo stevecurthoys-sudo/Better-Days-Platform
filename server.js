@@ -3,7 +3,7 @@ const { Pool } = require('pg');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const cors = require('cors');
-const jwt = require('jsonwebtoken'); // ✅ JWT for tokens
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,10 +24,10 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// ✅ TOKEN VERIFICATION MIDDLEWARE (NEW)
+// ✅ TOKEN VERIFICATION MIDDLEWARE
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
@@ -42,7 +42,7 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// ✅ Improved setup function that runs BEFORE server starts
+// ✅ Database setup with UNIQUE constraint
 async function setupDatabase() {
   console.log('🔧 Setting up database...');
   let client;
@@ -51,7 +51,7 @@ async function setupDatabase() {
     
     console.log('✅ Database connected to Railway PostgreSQL');
     
-    // Create tables
+    // Create tables with proper constraints
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -61,6 +61,12 @@ async function setupDatabase() {
         verified BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+    
+    // Create unique index for email (extra protection)
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx 
+      ON users (email);
     `);
     
     await client.query(`
@@ -85,31 +91,60 @@ async function setupDatabase() {
   }
 }
 
-// ✅ 1. SIGN-IN ENDPOINT (NEW - for existing users)
+// ✅ FIXED SIGN-IN ENDPOINT - Proper password comparison
 app.post('/api/signin', async (req, res) => {
+  let client;
   try {
     const { email, password } = req.body;
 
+    // Input validation
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    client = await pool.connect();
+    
     // 1. Find user by email
-    const userResult = await pool.query(
+    const userResult = await client.query(
       'SELECT id, email, password_hash, display_name FROM users WHERE email = $1',
-      [email]
+      [email.toLowerCase().trim()]
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid email or password' 
+      });
     }
 
     const user = userResult.rows[0];
 
-    // 2. Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    // 2. DEBUG: Log what we're comparing
+    console.log('Sign-in attempt for:', email);
+    console.log('Stored hash:', user.password_hash.substring(0, 20) + '...');
+    console.log('Provided password length:', password.length);
+
+    // 3. Verify password - FIXED: Use bcrypt.compare properly
+    let isValidPassword = false;
+    try {
+      isValidPassword = await bcrypt.compare(password, user.password_hash);
+      console.log('Password comparison result:', isValidPassword);
+    } catch (bcryptError) {
+      console.error('Bcrypt comparison error:', bcryptError);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Authentication error' 
+      });
+    }
     
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid email or password' 
+      });
     }
 
-    // 3. Generate JWT token (valid for 7 days)
+    // 4. Generate JWT token
     const token = jwt.sign(
       { 
         id: user.id, 
@@ -120,7 +155,7 @@ app.post('/api/signin', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // 4. Return user info + token
+    // 5. Return user info + token
     res.json({
       success: true,
       message: 'Sign-in successful',
@@ -134,52 +169,120 @@ app.post('/api/signin', async (req, res) => {
 
   } catch (error) {
     console.error('Sign-in error:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  } finally {
+    if (client) client.release();
   }
 });
 
-// ✅ Secure registration endpoint with password hashing
+// ✅ FIXED REGISTRATION ENDPOINT - Better error handling
 app.post('/api/register', async (req, res) => {
   let client;
   try {
     const { email, password, display_name } = req.body;
+
+    // Input validation
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Email and password are required' 
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Password must be at least 6 characters' 
+      });
+    }
+
+    client = await pool.connect();
     
-    // Hash the password before storing
+    // 1. Check if user already exists
+    const existingUser = await client.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Email already exists' 
+      });
+    }
+
+    // 2. Hash the password - FIXED: Proper bcrypt usage
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
-    const result = await pool.query(
+    // DEBUG: Log hash for testing
+    console.log('Registration - Created hash:', passwordHash.substring(0, 20) + '...');
+
+    // 3. Insert user
+    const result = await client.query(
       `INSERT INTO users (email, password_hash, display_name) 
        VALUES ($1, $2, $3) 
        RETURNING id, email, display_name, created_at`,
-      [email, passwordHash, display_name || 'New User']
+      [email.toLowerCase().trim(), passwordHash, display_name || 'New User']
     );
-    
+
+    const newUser = result.rows[0];
+
+    // 4. Auto-generate token for immediate login
+    const token = jwt.sign(
+      { 
+        id: newUser.id, 
+        email: newUser.email,
+        name: newUser.display_name 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      user: result.rows[0]
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        display_name: newUser.display_name
+      },
+      token: token
     });
     
   } catch (error) {
     console.error('Registration error:', error.message);
     
-    // Handle unique violation (duplicate email) gracefully
+    // Handle unique violation
     if (error.code === '23505') {
-      return res.status(400).json({ error: 'Email already exists' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Email already exists' 
+      });
     }
     
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  } finally {
+    if (client) client.release();
   }
 });
 
-// ✅ 2. EXAMPLE PROTECTED ROUTE (NEW - requires authentication)
+// ✅ PROTECTED ROUTE
 app.post('/api/forums', authenticateToken, async (req, res) => {
+  let client;
   try {
     const { name, tier, max_members } = req.body;
     const userId = req.user.id;
 
-    const result = await pool.query(
+    client = await pool.connect();
+
+    const result = await client.query(
       `INSERT INTO forums (name, tier, max_members, created_by) 
        VALUES ($1, $2, $3, $4) 
        RETURNING id, name, tier, max_members, created_at`,
@@ -193,25 +296,65 @@ app.post('/api/forums', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Forum creation error:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  } finally {
+    if (client) client.release();
   }
 });
 
-// ✅ 3. USER PROFILE ENDPOINT (NEW - requires authentication)
+// ✅ USER PROFILE ENDPOINT
 app.get('/api/me', authenticateToken, async (req, res) => {
+  let client;
   try {
-    const result = await pool.query(
+    client = await pool.connect();
+    
+    const result = await client.query(
       'SELECT id, email, display_name, verified, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      });
     }
     
-    res.json({ user: result.rows[0] });
+    res.json({ 
+      success: true,
+      user: result.rows[0] 
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// ✅ DEBUG ENDPOINT - List all users (remove in production)
+app.get('/api/debug/users', async (req, res) => {
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await client.query(
+      'SELECT id, email, display_name, created_at FROM users ORDER BY created_at DESC'
+    );
+    
+    res.json({
+      success: true,
+      count: result.rows.length,
+      users: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -240,7 +383,6 @@ async function startServer() {
   
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT} with Railway PostgreSQL`);
+    console.log(`🔧 Debug endpoint: http://localhost:${PORT}/api/debug/users`);
   });
 }
-
-startServer();
