@@ -340,3 +340,6 @@ function App() {
     </div>
   );
 }
+
+// ⚠️ CRITICAL: ADD THIS EXPORT STATEMENT
+export default App;
