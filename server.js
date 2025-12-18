@@ -1,27 +1,22 @@
 const express = require('express');
 const { Pool } = require('pg');
 require('dotenv').config();
-// ✅ Import bcrypt for password hashing (install: npm install bcrypt)
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Validate environment variable early
 if (!process.env.DATABASE_URL) {
   console.error('❌ DATABASE_URL not set in environment');
   process.exit(1);
 }
 
-// Database pool - configured for Railway's public URL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  // SSL is required for Railway's public URL
+  connectionString: process.env.DATABASE_PUBLIC_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
