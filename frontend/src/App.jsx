@@ -164,7 +164,7 @@ function App() {
     }
   };
 
-  // Handle logout
+  // Handle logout - FIXED VERSION
   const handleLogout = () => {
     localStorage.removeItem('betterDaysToken');
     localStorage.removeItem('betterDaysUser');
@@ -174,12 +174,21 @@ function App() {
     setPassword('');
     setIsLoginMode(false);
     setMessage('You have been signed out.');
+    
+    // Force clear any remaining state
+    setTimeout(() => {
+      setMessage('');
+    }, 3000);
   };
 
   // Toggle between login and register modes
   const toggleAuthMode = () => {
     setIsLoginMode(!isLoginMode);
     setMessage('');
+    // Clear form when toggling
+    setName('');
+    setEmail('');
+    setPassword('');
   };
 
   return (
@@ -286,6 +295,7 @@ function App() {
               <h2>Welcome back, {user.name}!</h2>
               <p>You're part of the Maple Street Forum (8 members)</p>
               <p className="user-info">Signed in as: {user.email}</p>
+              <p className="user-id">User ID: {user.id}</p>
             </div>
 
             <div className="dashboard-grid">
@@ -319,11 +329,30 @@ function App() {
             </div>
 
             <div className="quick-actions">
-              <button className="btn-primary">Propose New Idea</button>
-              <button className="btn-outline">Invite Neighbors</button>
-              <button onClick={handleLogout} className="btn-logout">
+              <button 
+                onClick={() => console.log('Create forum clicked')} 
+                className="btn-primary"
+              >
+                Propose New Idea
+              </button>
+              <button 
+                onClick={() => console.log('Invite neighbors clicked')}
+                className="btn-outline"
+              >
+                Invite Neighbors
+              </button>
+              <button 
+                onClick={handleLogout} 
+                className="btn-logout"
+              >
                 Sign Out
               </button>
+            </div>
+
+            <div className="debug-info">
+              <p className="small">
+                <strong>Debug:</strong> Token stored in localStorage. Refresh page to test persistence.
+              </p>
             </div>
           </div>
         )}
@@ -340,6 +369,3 @@ function App() {
     </div>
   );
 }
-
-// ⚠️ CRITICAL: ADD THIS EXPORT STATEMENT
-export default App;
