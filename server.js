@@ -91,7 +91,7 @@ async function setupDatabase() {
   }
 }
 
-// ✅ FIXED SIGN-IN ENDPOINT - Proper password comparison
+// ✅ FIXED SIGN-IN ENDPOINT - Proper client handling
 app.post('/api/signin', async (req, res) => {
   let client;
   try {
@@ -99,13 +99,15 @@ app.post('/api/signin', async (req, res) => {
 
     // Input validation
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Email and password are required' 
+      });
     }
 
-    client = await pool.connect();
-    
-    // 1. Find user by email
-    const userResult = await client.query(
+    // Use pool.query instead of pool.connect() for simple queries
+    // This automatically handles connection release
+    const userResult = await pool.query(
       'SELECT id, email, password_hash, display_name FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
@@ -119,12 +121,12 @@ app.post('/api/signin', async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // 2. DEBUG: Log what we're comparing
+    // DEBUG: Log what we're comparing
     console.log('Sign-in attempt for:', email);
-    console.log('Stored hash:', user.password_hash.substring(0, 20) + '...');
+    console.log('Stored hash (first 20 chars):', user.password_hash.substring(0, 20) + '...');
     console.log('Provided password length:', password.length);
 
-    // 3. Verify password - FIXED: Use bcrypt.compare properly
+    // Verify password
     let isValidPassword = false;
     try {
       isValidPassword = await bcrypt.compare(password, user.password_hash);
@@ -144,7 +146,7 @@ app.post('/api/signin', async (req, res) => {
       });
     }
 
-    // 4. Generate JWT token
+    // Generate JWT token
     const token = jwt.sign(
       { 
         id: user.id, 
@@ -155,7 +157,7 @@ app.post('/api/signin', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // 5. Return user info + token
+    // Return user info + token
     res.json({
       success: true,
       message: 'Sign-in successful',
@@ -173,14 +175,11 @@ app.post('/api/signin', async (req, res) => {
       success: false,
       error: 'Internal server error' 
     });
-  } finally {
-    if (client) client.release();
   }
 });
 
-// ✅ FIXED REGISTRATION ENDPOINT - Better error handling
+// ✅ FIXED REGISTRATION ENDPOINT
 app.post('/api/register', async (req, res) => {
-  let client;
   try {
     const { email, password, display_name } = req.body;
 
@@ -199,10 +198,8 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    client = await pool.connect();
-    
-    // 1. Check if user already exists
-    const existingUser = await client.query(
+    // Check if user already exists
+    const existingUser = await pool.query(
       'SELECT id FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
@@ -214,15 +211,15 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // 2. Hash the password - FIXED: Proper bcrypt usage
+    // Hash the password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
     // DEBUG: Log hash for testing
-    console.log('Registration - Created hash:', passwordHash.substring(0, 20) + '...');
+    console.log('Registration - Created hash (first 20 chars):', passwordHash.substring(0, 20) + '...');
 
-    // 3. Insert user
-    const result = await client.query(
+    // Insert user
+    const result = await pool.query(
       `INSERT INTO users (email, password_hash, display_name) 
        VALUES ($1, $2, $3) 
        RETURNING id, email, display_name, created_at`,
@@ -231,7 +228,7 @@ app.post('/api/register', async (req, res) => {
 
     const newUser = result.rows[0];
 
-    // 4. Auto-generate token for immediate login
+    // Auto-generate token for immediate login
     const token = jwt.sign(
       { 
         id: newUser.id, 
@@ -268,21 +265,16 @@ app.post('/api/register', async (req, res) => {
       success: false,
       error: 'Internal server error' 
     });
-  } finally {
-    if (client) client.release();
   }
 });
 
 // ✅ PROTECTED ROUTE
 app.post('/api/forums', authenticateToken, async (req, res) => {
-  let client;
   try {
     const { name, tier, max_members } = req.body;
     const userId = req.user.id;
 
-    client = await pool.connect();
-
-    const result = await client.query(
+    const result = await pool.query(
       `INSERT INTO forums (name, tier, max_members, created_by) 
        VALUES ($1, $2, $3, $4) 
        RETURNING id, name, tier, max_members, created_at`,
@@ -300,18 +292,13 @@ app.post('/api/forums', authenticateToken, async (req, res) => {
       success: false,
       error: 'Internal server error' 
     });
-  } finally {
-    if (client) client.release();
   }
 });
 
 // ✅ USER PROFILE ENDPOINT
 app.get('/api/me', authenticateToken, async (req, res) => {
-  let client;
   try {
-    client = await pool.connect();
-    
-    const result = await client.query(
+    const result = await pool.query(
       'SELECT id, email, display_name, verified, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
@@ -332,17 +319,13 @@ app.get('/api/me', authenticateToken, async (req, res) => {
       success: false,
       error: 'Internal server error' 
     });
-  } finally {
-    if (client) client.release();
   }
 });
 
 // ✅ DEBUG ENDPOINT - List all users (remove in production)
 app.get('/api/debug/users', async (req, res) => {
-  let client;
   try {
-    client = await pool.connect();
-    const result = await client.query(
+    const result = await pool.query(
       'SELECT id, email, display_name, created_at FROM users ORDER BY created_at DESC'
     );
     
@@ -353,8 +336,6 @@ app.get('/api/debug/users', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
-  } finally {
-    if (client) client.release();
   }
 });
 
@@ -386,3 +367,5 @@ async function startServer() {
     console.log(`🔧 Debug endpoint: http://localhost:${PORT}/api/debug/users`);
   });
 }
+
+startServer();
