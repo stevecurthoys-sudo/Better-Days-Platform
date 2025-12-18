@@ -10,8 +10,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-if (!process.env.DATABASE_URL) {
-  console.error('❌ DATABASE_URL not set in environment');
+if (!process.env.DATABASE_PUBLIC_URL) {
+  console.error('❌ DATABASE_PUBLIC_URL not set in environment');
   process.exit(1);
 }
 
