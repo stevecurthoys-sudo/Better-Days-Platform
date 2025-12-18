@@ -517,3 +517,33 @@ input:focus-visible {
 .hidden {
   display: none;
 }
+/* Debug Info */
+.debug-info {
+  margin-top: 20px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.debug-info .small {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+}
+
+.user-id {
+  font-size: 0.85rem;
+  color: #888;
+  font-family: monospace;
+  margin-top: 5px;
+}
+
+/* Clear form animation */
+.auth-form input {
+  transition: border-color 0.3s, background-color 0.3s;
+}
+
+.auth-form input:focus {
+  background-color: #fff;
+}
